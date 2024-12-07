@@ -11,44 +11,46 @@ const _soundPlayerEmitter = new NativeEventEmitter(RNSoundPlayer);
 let _finishedPlayingListener = null;
 let _finishedLoadingListener = null;
 
+const _soundPlayerDefaultKey = "soundPlayerDefaultKey";
+
 export default {
-  playSoundFile: (name: string, type: string) => {
-    RNSoundPlayer.playSoundFile(name, type);
+  playSoundFile: (name: string, type: string, key: string) => {
+    RNSoundPlayer.playSoundFile(name, type, key || _soundPlayerDefaultKey);
   },
 
-  playSoundFileWithDelay: (name: string, type: string, delay: number) => {
-    RNSoundPlayer.playSoundFileWithDelay(name, type, delay);
+  playSoundFileWithDelay: (name: string, type: string, delay: number, key: string) => {
+    RNSoundPlayer.playSoundFileWithDelay(name, type, delay, key || _soundPlayerDefaultKey);
   },
 
-  loadSoundFile: (name: string, type: string) => {
-    RNSoundPlayer.loadSoundFile(name, type);
+  loadSoundFile: (name: string, type: string, key: string) => {
+    RNSoundPlayer.loadSoundFile(name, type, key || _soundPlayerDefaultKey);
   },
 
-  setNumberOfLoops: (loops: number) => {
-    RNSoundPlayer.setNumberOfLoops(loops);
+  setNumberOfLoops: (loops: number, key: string) => {
+    RNSoundPlayer.setNumberOfLoops(loops, key || _soundPlayerDefaultKey);
   },
 
-  playUrl: (url: string) => {
-    RNSoundPlayer.playUrl(url);
+  playUrl: (url: string, key: string) => {
+    RNSoundPlayer.playUrl(url, key || _soundPlayerDefaultKey);
   },
 
-  loadUrl: (url: string) => {
-    RNSoundPlayer.loadUrl(url);
+  loadUrl: (url: string, key: string) => {
+    RNSoundPlayer.loadUrl(url, key || _soundPlayerDefaultKey);
   },
-  
-  playAsset: async (asset: number) => {
+
+  playAsset: async (asset: number, key: string) => {
     if (!(__DEV__) && Platform.OS === "android") {
-      RNSoundPlayer.playSoundFile(resolveAsset(asset).uri, '');
+      RNSoundPlayer.playSoundFile(resolveAsset(asset).uri, '', key || _soundPlayerDefaultKey);
     } else {
-      RNSoundPlayer.playUrl(resolveAsset(asset).uri); 
-    } 
+      RNSoundPlayer.playUrl(resolveAsset(asset).uri, key || _soundPlayerDefaultKey);
+    }
   },
-  
-  loadAsset: (asset: number) => {
+
+  loadAsset: (asset: number, key: string) => {
     if (!(__DEV__) && Platform.OS === "android") {
-      RNSoundPlayer.loadSoundFile(resolveAsset(asset).uri, '');
+      RNSoundPlayer.loadSoundFile(resolveAsset(asset).uri, '', key || _soundPlayerDefaultKey);
     } else {
-      RNSoundPlayer.loadUrl(resolveAsset(asset).uri); 
+      RNSoundPlayer.loadUrl(resolveAsset(asset).uri, key || _soundPlayerDefaultKey);
     }
   },
 
@@ -71,59 +73,59 @@ export default {
     }
 
     _finishedLoadingListener = _soundPlayerEmitter.addListener(
-      "FinishedLoading",
-      callback
+        "FinishedLoading",
+        callback
     );
   },
 
   addEventListener: (
-    eventName:
-      | "OnSetupError"
-      | "FinishedLoading"
-      | "FinishedPlaying"
-      | "FinishedLoadingURL"
-      | "FinishedLoadingFile",
-    callback: Function
+      eventName:
+          | "OnSetupError"
+              | "FinishedLoading"
+              | "FinishedPlaying"
+              | "FinishedLoadingURL"
+              | "FinishedLoadingFile",
+      callback: Function
   ) => _soundPlayerEmitter.addListener(eventName, callback),
 
-  play: () => {
+  play: (key: string) => {
     // play and resume has the exact same implementation natively
-    RNSoundPlayer.resume();
+    RNSoundPlayer.resume(key || _soundPlayerDefaultKey);
   },
 
-  pause: () => {
-    RNSoundPlayer.pause();
+  pause: (key: string) => {
+    RNSoundPlayer.pause(key || _soundPlayerDefaultKey);
   },
 
-  resume: () => {
-    RNSoundPlayer.resume();
+  resume: (key: string) => {
+    RNSoundPlayer.resume(key || _soundPlayerDefaultKey);
   },
 
-  stop: () => {
-    RNSoundPlayer.stop();
+  stop: (key: string) => {
+    RNSoundPlayer.stop(key || _soundPlayerDefaultKey);
   },
 
-  seek: (seconds: number) => {
-    RNSoundPlayer.seek(seconds);
+  seek: (seconds: number, key: string) => {
+    RNSoundPlayer.seek(seconds, key || _soundPlayerDefaultKey);
   },
 
-  setVolume: (volume: number) => {
-    RNSoundPlayer.setVolume(volume);
+  setVolume: (volume: number, key: string) => {
+    RNSoundPlayer.setVolume(volume, key || _soundPlayerDefaultKey);
   },
 
-  setSpeaker: (on: boolean) => {
-    RNSoundPlayer.setSpeaker(on);
+  setSpeaker: (on: boolean, key: string) => {
+    RNSoundPlayer.setSpeaker(on, key || _soundPlayerDefaultKey);
   },
 
-  setMixAudio: (on: boolean) => {
+  setMixAudio: (on: boolean, key: string) => {
     if (Platform.OS === "android") {
       console.log("setMixAudio is not implemented on Android");
     } else {
-      RNSoundPlayer.setMixAudio(on);
+      RNSoundPlayer.setMixAudio(on, key || _soundPlayerDefaultKey);
     }
   },
 
-  getInfo: async () => RNSoundPlayer.getInfo(),
+  getInfo: async (key: string) => RNSoundPlayer.getInfo(key || _soundPlayerDefaultKey),
 
   unmount: () => {
     if (_finishedPlayingListener) {

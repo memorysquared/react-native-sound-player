@@ -9,7 +9,7 @@
 #import <React/RCTEventEmitter.h>
 
 @interface RNSoundPlayer : RCTEventEmitter <RCTBridgeModule, AVAudioPlayerDelegate>
-@property (nonatomic, strong) AVAudioPlayer *player;
 @property (nonatomic, strong) AVPlayer *avPlayer;
 @property (nonatomic) int loopCount;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, AVAudioPlayer *> *players;
 @end
