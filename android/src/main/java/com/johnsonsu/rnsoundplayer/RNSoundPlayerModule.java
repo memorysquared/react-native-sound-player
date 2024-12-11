@@ -22,6 +22,8 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.LifecycleEventListener;
+import java.util.Map;
+import java.util.HashMap;
 
 
 public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements LifecycleEventListener {
@@ -33,15 +35,16 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
   public final static String EVENT_FINISHED_LOADING_URL = "FinishedLoadingURL";
 
   private final ReactApplicationContext reactContext;
-  private MediaPlayer mediaPlayer;
   private float volume;
   private AudioManager audioManager;
+  private HashMap<String, MediaPlayer> mediaPlayers;
 
   public RNSoundPlayerModule(ReactApplicationContext reactContext) {
     super(reactContext);
     this.reactContext = reactContext;
     this.volume = 1.0f;
     this.audioManager = (AudioManager) this.reactContext.getSystemService(Context.AUDIO_SERVICE);
+    this.mediaPlayers = new HashMap<>(); // store multiple media players
     reactContext.addLifecycleEventListener(this);
   }
 
@@ -66,83 +69,90 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
 
   @Override
   public void onHostDestroy() {
+    for (Map.Entry<String, MediaPlayer> entry : this.mediaPlayers.entrySet()) {
+        MediaPlayer player = entry.getValue();
+        if (player != null) {
+            player.stop();
+            player.release();
+        }
+    }
+    this.mediaPlayers.clear();
+  }
 
-    this.stop();
-    if (mediaPlayer != null) {
-      mediaPlayer.release();
-      mediaPlayer = null;
+  @ReactMethod
+  public void playSoundFile(String name, String type, String key) throws IOException {
+    mountSoundFile(name, type, key);
+    this.resume(key);
+  }
+
+  @ReactMethod
+  public void loadSoundFile(String name, String type, String key) throws IOException {
+    mountSoundFile(name, type, key);
+  }
+
+  @ReactMethod
+  public void playUrl(String url, String key) throws IOException {
+    prepareUrl(url, key);
+    this.resume(key);
+  }
+
+  @ReactMethod
+  public void loadUrl(String url, String key) throws IOException {
+    prepareUrl(url, key);
+  }
+
+  @ReactMethod
+  public void pause(String key) throws IllegalStateException {
+      MediaPlayer player = this.mediaPlayers.get(key);
+      if (player != null && player.isPlaying()) {
+          player.pause();
+      }
+  }
+
+  @ReactMethod
+  public void resume(String key) throws IOException, IllegalStateException {
+    MediaPlayer player = this.mediaPlayers.get(key);
+    if (player != null) {
+      this.setVolume(this.volume, key);
+      player.start();
     }
   }
 
   @ReactMethod
-  public void playSoundFile(String name, String type) throws IOException {
-    mountSoundFile(name, type);
-    this.resume();
-  }
-
-  @ReactMethod
-  public void loadSoundFile(String name, String type) throws IOException {
-    mountSoundFile(name, type);
-  }
-
-  @ReactMethod
-  public void playUrl(String url) throws IOException {
-    prepareUrl(url);
-    this.resume();
-  }
-
-  @ReactMethod
-  public void loadUrl(String url) throws IOException {
-    prepareUrl(url);
-  }
-
-  @ReactMethod
-  public void pause() throws IllegalStateException {
-    if (this.mediaPlayer != null) {
-      this.mediaPlayer.pause();
+  public void stop(String key) throws IllegalStateException {
+    MediaPlayer player = this.mediaPlayers.get(key);
+    if (player != null) {
+      player.stop();
     }
   }
 
   @ReactMethod
-  public void resume() throws IOException, IllegalStateException {
-    if (this.mediaPlayer != null) {
-      this.setVolume(this.volume);
-      this.mediaPlayer.start();
+  public void seek(float seconds, String key) throws IllegalStateException {
+    MediaPlayer player = this.mediaPlayers.get(key);
+    if (player != null) {
+      player.seekTo((int) seconds * 1000);
     }
   }
 
   @ReactMethod
-  public void stop() throws IllegalStateException {
-    if (this.mediaPlayer != null) {
-      this.mediaPlayer.stop();
-    }
-  }
-
-  @ReactMethod
-  public void seek(float seconds) throws IllegalStateException {
-    if (this.mediaPlayer != null) {
-      this.mediaPlayer.seekTo((int) seconds * 1000);
-    }
-  }
-
-  @ReactMethod
-  public void setVolume(float volume) throws IOException {
+  public void setVolume(float volume, String key) throws IOException {
     this.volume = volume;
-    if (this.mediaPlayer != null) {
-      this.mediaPlayer.setVolume(volume, volume);
+    MediaPlayer player = this.mediaPlayers.get(key);
+    if (player != null) {
+      player.setVolume(volume, volume);
     }
   }
 
   @ReactMethod
-  public void getInfo(
-          Promise promise) {
-    if (this.mediaPlayer == null) {
+  public void getInfo(String key, Promise promise) {
+    MediaPlayer player = this.mediaPlayers.get(key);
+    if (player == null) {
       promise.resolve(null);
       return;
     }
     WritableMap map = Arguments.createMap();
-    map.putDouble("currentTime", this.mediaPlayer.getCurrentPosition() / 1000.0);
-    map.putDouble("duration", this.mediaPlayer.getDuration() / 1000.0);
+    map.putDouble("currentTime", player.getCurrentPosition() / 1000.0);
+    map.putDouble("duration", player.getDuration() / 1000.0);
     promise.resolve(map);
   }
 
@@ -164,7 +174,7 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
             .emit(eventName, params);
   }
 
-  private void mountSoundFile(String name, String type) throws IOException {
+  private void mountSoundFile(String name, String type, String key) throws IOException {
     try {
       Uri uri;
       int soundResID = getReactApplicationContext().getResources().getIdentifier(name, "raw", getReactApplicationContext().getPackageName());
@@ -175,12 +185,14 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
         uri = this.getUriFromFile(name, type);
       }
 
-      if (this.mediaPlayer == null) {
-        this.mediaPlayer = initializeMediaPlayer(uri);
+      MediaPlayer mediaPlayer = mediaPlayers.get(key);
+      if (mediaPlayer == null) {
+          mediaPlayer = initializeMediaPlayer(uri);
+          mediaPlayers.put(key, mediaPlayer);
       } else {
-        this.mediaPlayer.reset();
-        this.mediaPlayer.setDataSource(getCurrentActivity(), uri);
-        this.mediaPlayer.prepare();
+          mediaPlayer.reset();
+          mediaPlayer.setDataSource(getCurrentActivity(), uri);
+          mediaPlayer.prepare();
       }
       sendMountFileSuccessEvents(name, type);
     } catch (IOException e) {
@@ -203,12 +215,15 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
     return Uri.parse("file://" + folder + "/" + file);
   }
 
-  private void prepareUrl(final String url) throws IOException {
+  private void prepareUrl(final String url, String key) throws IOException {
     try {
-      if (this.mediaPlayer == null) {
+      MediaPlayer mediaPlayer = mediaPlayers.get(key);
+
+      if (mediaPlayer == null) {
         Uri uri = Uri.parse(url);
-        this.mediaPlayer = initializeMediaPlayer(uri);
-        this.mediaPlayer.setOnPreparedListener(
+        mediaPlayer = initializeMediaPlayer(uri);
+        mediaPlayers.put(key, mediaPlayer);
+        mediaPlayer.setOnPreparedListener(
                 new OnPreparedListener() {
                   @Override
                   public void onPrepared(MediaPlayer mediaPlayer) {
@@ -221,9 +236,9 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
         );
       } else {
         Uri uri = Uri.parse(url);
-        this.mediaPlayer.reset();
-        this.mediaPlayer.setDataSource(getCurrentActivity(), uri);
-        this.mediaPlayer.prepare();
+        mediaPlayer.reset();
+        mediaPlayer.setDataSource(getCurrentActivity(), uri);
+        mediaPlayer.prepare();
       }
       WritableMap params = Arguments.createMap();
       params.putBoolean("success", true);
