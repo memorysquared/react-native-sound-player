@@ -28,7 +28,10 @@ export default {
 
   setNumberOfLoops: (loops: number, key: string) => {
     if (Platform.OS === "android") {
-      console.log("setNumberOfLoops is not implemented on Android");
+      RNSoundPlayer.setLooping(key || _soundPlayerDefaultKey);
+      if (loops !== -1) {
+        console.log("Android does not support setting number of loops, it will loop indefinitely");
+      }
       return;
     }
     RNSoundPlayer.setNumberOfLoops(loops, key || _soundPlayerDefaultKey);
