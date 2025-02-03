@@ -157,6 +157,18 @@ public class RNSoundPlayerModule extends ReactContextBaseJavaModule implements L
   }
 
   @ReactMethod
+  public void setLooping(String key) throws IOException {
+     MediaPlayer player = this.mediaPlayers.get(key);
+     if (player != null) {
+       //player.setLooping(true);
+       player.setOnCompletionListener(mp -> {
+           mp.seekTo(0);
+           mp.start();
+       });
+     }
+  }
+
+  @ReactMethod
   public void addListener(String eventName) {
     // Set up any upstream listeners or background tasks as necessary
   }
